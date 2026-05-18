@@ -80,7 +80,7 @@ export default function AllProducts() {
   );
 
   return (
-    <div className="max-w-[1200px] mx-auto animate-in fade-in duration-700 pb-10">
+    <div className="max-w-[350px] md:max-w-[1200px] mx-auto animate-in fade-in duration-700 pb-10">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div>
           <h1 className="text-2xl font-serif font-bold tracking-tight text-slate-900">Inventory</h1>

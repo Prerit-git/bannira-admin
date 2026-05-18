@@ -160,7 +160,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   return (
     <div className="max-w-[1100px] mx-auto pb-24 font-sans text-slate-900 animate-in fade-in duration-700">
       {/* Header */}
-      <header className="flex items-center justify-between mb-10">
+      <header className="flex flex-col md:flex-row items-start md:items-center justify-between mb-10 gap-2 md:gap-0">
         <div className="flex items-center gap-5">
           <button onClick={() => router.back()} className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-slate-100 text-slate-400 hover:text-slate-900 transition-all shadow-sm">
             <ArrowLeft size={18} />

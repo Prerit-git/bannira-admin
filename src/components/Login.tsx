@@ -69,7 +69,7 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="bg-white/5 backdrop-blur-xl p-10 rounded-[3rem] border border-white/10 shadow-2xl">
+            <div className="bg-white/5 backdrop-blur-xl p-5 md:p-10 rounded-4xl border border-white/10 shadow-2xl w-[90%] md:w-full mx-auto">
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Email</label>

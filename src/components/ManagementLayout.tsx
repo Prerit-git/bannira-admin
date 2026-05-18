@@ -1,29 +1,29 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  ShoppingBag,
-  PlusCircle,
-  Users,
+import { 
+  LayoutDashboard, 
+  ShoppingBag, 
+  PlusCircle, 
   Settings,
-  ArrowUpRight,
-  ArrowRightLeft,
+  ArrowUpRight, 
   Package,
   LogOut,
+  Menu, 
+  X     
 } from "lucide-react";
 import Image from "next/image";
 import { signOut, useSession } from "next-auth/react";
 
-export default function ManagementLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ManagementLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLoginPage = pathname === "/login";
   const { data: session } = useSession();
+  
+  // Mobile drawer state control
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const navItems = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -34,54 +34,99 @@ export default function ManagementLayout({
   ];
 
   return (
-    <div className="bg-[#FAF9F6] text-slate-900 flex min-h-screen font-sans selection:bg-[#D4AF37]/20">
+    <div className="bg-[#FAF9F6] text-slate-900 flex min-h-screen font-sans selection:bg-[#D4AF37]/20 relative">
+      
+      {/* 1. MOBILE & TABLET TOP HEADER BAR */}
+      {!isLoginPage && (
+        <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#7B2D0A] flex items-center justify-between px-4 z-40 shadow-md">
+          
+          <button 
+            onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+            className="text-white p-2 hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+          >
+            {isDrawerOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+
+          <div className="h-8 w-32 relative">
+            <Image 
+              src="/bannira_web_logo.png" 
+              fill
+              alt="logo" 
+              className="object-contain"
+              priority
+            />
+          </div>
+
+          {/* RIGHT: Quick External Logout */}
+          <button 
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="text-white p-2 hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+            title="Instant Logout"
+          >
+            <LogOut size={22} className="text-slate-200 hover:text-[#D4AF37] transition-colors" />
+          </button>
+        </header>
+      )}
+
+      {/* 2. SIDEBAR / DRAWER INTERFACE */}
       {!isLoginPage && (
         <>
-          <aside className="w-72 bg-[#7B2D0A] fixed h-full flex flex-col border-r border-slate-100/80 shadow-[10px_0_40px_-20px_rgba(0,0,0,0.03)] z-50">
-            <div className="p-8 mb-4">
-              {/* <div className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 rounded-full bg-[#D4AF37]" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Management</span>
-          </div> */}
-              <Image
-                src={"/bannira_web_logo.png"}
-                height={50}
-                width={200}
-                alt="logo"
+          {isDrawerOpen && (
+            <div 
+              className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 transition-opacity duration-300"
+              onClick={() => setIsDrawerOpen(false)}
+            />
+          )}
+
+          <aside className={`
+            w-72 bg-[#7B2D0A] fixed h-full flex flex-col border-r border-slate-100/80 shadow-[10px_0_40px_-20px_rgba(0,0,0,0.03)] z-50
+            transition-transform duration-300 ease-in-out
+            ${isDrawerOpen ? "translate-x-0" : "-translate-x-full"} 
+            lg:translate-x-0
+          `}>
+            
+            <div className="p-8 mb-4 flex items-center justify-between">
+              <Image 
+                src="/bannira_web_logo.png" 
+                height={50} 
+                width={200} 
+                alt="logo" 
                 className="h-[100] w-[200]"
               />
+              
+              {/* <button 
+                onClick={() => setIsDrawerOpen(false)}
+                className="lg:hidden text-white/70 hover:text-white p-1 hover:bg-white/10 rounded-lg"
+              >
+                <X size={20} />
+              </button> */}
             </div>
 
-            <nav className="flex-1 px-4 space-y-2">
+            <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
               {navItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={() => setIsDrawerOpen(false)} // Shuts drawer overlay down automatically on navigation change
                     className={`flex items-center justify-between px-4 py-4 rounded-2xl transition-all duration-300 group ${
-                      isActive
-                        ? "bg-slate-50 text-zinc-900 shadow-sm"
-                        : "text-slate-400 hover:bg-slate-50/80 hover:text-zinc-600"
+                      isActive 
+                        ? "bg-slate-50 text-zinc-900 shadow-sm" 
+                        : "text-slate-400 hover:bg-slate-50/80 hover:text-zinc-200"
                     }`}
                   >
                     <div className="flex items-center gap-4">
-                      <item.icon
-                        size={20}
-                        strokeWidth={isActive ? 2 : 1.5}
-                        className={
-                          isActive
-                            ? "text-[#D4AF37]"
-                            : "text-slate-300 group-hover:text-slate-400"
-                        }
+                      <item.icon 
+                        size={20} 
+                        strokeWidth={isActive ? 2 : 1.5} 
+                        className={isActive ? "text-[#D4AF37]" : "text-slate-300 group-hover:text-slate-100"} 
                       />
                       <span className="text-[11px] font-black uppercase tracking-widest">
                         {item.label}
                       </span>
                     </div>
-                    {isActive && (
-                      <ArrowUpRight size={14} className="text-[#D4AF37]" />
-                    )}
+                    {isActive && <ArrowUpRight size={14} className="text-[#D4AF37]" />}
                   </Link>
                 );
               })}
@@ -102,16 +147,13 @@ export default function ManagementLayout({
                     </span>
                   </div>
                 </div>
-
-                <button
+                
+                <button 
                   onClick={() => signOut({ callbackUrl: "/login" })}
                   className="p-2 hover:bg-white/10 rounded-xl transition-colors group cursor-pointer"
                   title="Logout"
                 >
-                  <LogOut
-                    size={18}
-                    className="text-slate-300 group-hover:text-[#D4AF37]"
-                  />
+                  <LogOut size={18} className="text-slate-300 group-hover:text-[#D4AF37]" />
                 </button>
               </div>
             </div>
@@ -119,9 +161,13 @@ export default function ManagementLayout({
         </>
       )}
 
-      <main
-        className={`flex-1 min-h-screen ${isLoginPage ? "ml-0 p-0" : "ml-72 p-12 bg-slate-100"}`}
-      >
+      <main className={`
+        flex-1 min-h-screen transition-all duration-300
+        ${isLoginPage 
+          ? "ml-0 p-0" 
+          : "ml-0 lg:ml-72 pt-24 p-6 lg:p-12 bg-slate-100"
+        }
+      `}>
         {children}
       </main>
     </div>
