@@ -26,22 +26,26 @@ export default function Orders() {
 
   useEffect(() => { fetchOrders(); }, []);
 
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case "Pending": return "bg-orange-50 text-orange-600 border-orange-100";
-      case "Shipped": return "bg-blue-50 text-blue-600 border-blue-100";
-      case "Delivered": return "bg-green-50 text-green-600 border-green-100";
-      case "Cancelled": return "bg-red-50 text-red-600 border-red-100";
-      default: return "bg-slate-50 text-slate-600 border-slate-100";
+  // 2. MODIFIED: Status calculation based on paymentStatus and paymentMethod
+  const getCustomStatus = (order: any) => {
+    if (order.paymentStatus === "Paid") {
+      return { text: "Paid", style: "bg-green-50 text-green-600 border-green-100" };
     }
+    if (order.paymentMethod === "cod") {
+      return { text: "Pay on Delivery", style: "bg-orange-50 text-orange-600 border-orange-100" };
+    }
+    return { text: "Pending", style: "bg-orange-50 text-orange-600 border-orange-100" };
   };
 
-  const filteredOrders = orders.filter((o: any) => {
-    const name = o.customerName?.toLowerCase() || "";
-    const id = o._id?.toString().toLowerCase() || "";
-    const term = searchTerm.toLowerCase();
-    return name.includes(term) || id.includes(term);
-  });
+  // 1. CRITICAL CHANGE: Added explicit filter for orderStatus === "Processing"
+  const filteredOrders = orders
+    .filter((o: any) => o.orderStatus === "Processing")
+    .filter((o: any) => {
+      const name = o.shippingAddress?.fullName?.toLowerCase() || ""; // Fixed potential typo fallback safely
+      const id = o._id?.toString().toLowerCase() || "";
+      const term = searchTerm.toLowerCase();
+      return name.includes(term) || id.includes(term);
+    });
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400 p-4">
@@ -51,7 +55,6 @@ export default function Orders() {
   );
 
   return (
-    // 1. Is root div ko constraints diye hain taaki horizontal push block ho sake
     <div className="w-full max-w-[300px] md:max-w-[1200px] mx-auto animate-in fade-in duration-700 pb-20 px-0 md:px-4 min-w-0 overflow-hidden">
       
       {/* Header */}
@@ -59,7 +62,7 @@ export default function Orders() {
         <div>
           <h1 className="text-2xl font-serif font-bold tracking-tight text-slate-900">Orders</h1>
           <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mt-1">
-            {orders.length} Total Sales
+            {filteredOrders.length} Processing Sales {/* Reflecting accurate filtered length */}
           </p>
         </div>
 
@@ -73,13 +76,12 @@ export default function Orders() {
         </div>
       </header>
 
-      {/* Outer Card Wrapper: Ensures background and borders wrap perfectly */}
+      {/* Outer Card Wrapper */}
       <div className="w-full bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
         
-        {/* Inner Scroll Wrapper: Strictly clips overflow at viewport width and creates a container block */}
+        {/* Inner Scroll Wrapper */}
         <div className="w-full overflow-x-auto block min-w-0 clear-both">
           
-          {/* Table: min-w enforces the horizontal deck size on mobile layouts */}
           <table className="w-full text-left border-collapse min-w-[850px] table-auto">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-100">
@@ -92,58 +94,62 @@ export default function Orders() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredOrders.map((order: any) => (
-                <tr 
-                  key={order._id} 
-                  onClick={() => setSelectedOrder(order)}
-                  className="hover:bg-slate-50/50 transition-all group cursor-pointer"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-900 mb-0.5">#{order._id.slice(-6).toUpperCase()}</span>
-                      <span className="text-[9px] text-slate-400 font-medium">{new Date(order.createdAt).toLocaleDateString('en-GB')}</span>
-                    </div>
-                  </td>
-                  
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-slate-800 text-xs">{order.shippingAddress.fullName || "Guest"}</span>
-                      <span className="text-[9px] text-slate-400">{order.phone}</span>
-                    </div>
-                  </td>
+              {filteredOrders.map((order: any) => {
+                const statusData = getCustomStatus(order); // Compute status configurations dynamically
+                return (
+                  <tr 
+                    key={order._id} 
+                    onClick={() => setSelectedOrder(order)}
+                    className="hover:bg-slate-50/50 transition-all group cursor-pointer"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-900 mb-0.5">#{order._id.slice(-6).toUpperCase()}</span>
+                        <span className="text-[9px] text-slate-400 font-medium">{new Date(order.createdAt).toLocaleDateString('en-GB')}</span>
+                      </div>
+                    </td>
+                    
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-800 text-xs">{order.shippingAddress?.fullName || "Guest"}</span>
+                        <span className="text-[9px] text-slate-400">{order.shippingAddress?.phone || order.phone}</span>
+                      </div>
+                    </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex -space-x-2">
-                      {order.items.slice(0, 3).map((item: any, i: number) => (
-                        <img key={i} src={item.image} className="w-8 h-10 rounded-md border-2 border-white object-cover shadow-sm inline-block" alt="item thumbnail" />
-                      ))}
-                      {order.items.length > 3 && (
-                        <div className="w-8 h-10 rounded-md border-2 border-white bg-slate-100 inline-flex items-center justify-center text-[8px] font-black text-slate-400">+{order.items.length - 3}</div>
-                      )}
-                    </div>
-                  </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex -space-x-2">
+                        {order.items.slice(0, 3).map((item: any, i: number) => (
+                          <img key={i} src={item.image} className="w-8 h-10 rounded-md border-2 border-white object-cover shadow-sm inline-block" alt="item thumbnail" />
+                        ))}
+                        {order.items.length > 3 && (
+                          <div className="w-8 h-10 rounded-md border-2 border-white bg-slate-100 inline-flex items-center justify-center text-[8px] font-black text-slate-400">+{order.items.length - 3}</div>
+                        )}
+                      </div>
+                    </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <CreditCard size={12} className="text-slate-300" />
-                      <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter">{order.paymentMethod || "COD"}</span>
-                    </div>
-                  </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <CreditCard size={12} className="text-slate-300" />
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter">{order.paymentMethod || "COD"}</span>
+                      </div>
+                    </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full border ${getStatusStyle(order.status)}`}>
-                      {order.status}
-                    </span>
-                  </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {/* 3. Rendered the computed dynamic text block & styles seamlessly */}
+                      <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full border ${statusData.style}`}>
+                        {statusData.text}
+                      </span>
+                    </td>
 
-                  <td className="px-6 py-4 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-3">
-                       <span className="font-black text-slate-900 text-xs">₹{order.totalAmount.toLocaleString()}</span>
-                       <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-900 transition-all group-hover:translate-x-1" />
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-3">
+                         <span className="font-black text-slate-900 text-xs">₹{(order.totalAmount || 0).toLocaleString()}</span>
+                         <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-900 transition-all group-hover:translate-x-1" />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
@@ -183,14 +189,14 @@ export default function Orders() {
                     <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 shrink-0"><User size={14}/></div>
                     <div>
                       <p className="text-[9px] font-black uppercase text-slate-400 mb-0.5">Customer</p>
-                      <p className="text-xs font-bold text-slate-800">{selectedOrder.shippingAddress.fullName}</p>
+                      <p className="text-xs font-bold text-slate-800">{selectedOrder.shippingAddress?.fullName}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 shrink-0"><Phone size={14}/></div>
                     <div>
                       <p className="text-[9px] font-black uppercase text-slate-400 mb-0.5">Phone</p>
-                      <p className="text-xs font-bold text-slate-800">{selectedOrder.shippingAddress.phone}</p>
+                      <p className="text-xs font-bold text-slate-800">{selectedOrder.shippingAddress?.phone || selectedOrder.phone}</p>
                     </div>
                   </div>
                 </div>
@@ -199,8 +205,8 @@ export default function Orders() {
                   <div>
                     <p className="text-[9px] font-black uppercase text-slate-400 mb-0.5">Shipping Address</p>
                     <p className="text-xs font-medium text-slate-600 leading-relaxed">
-                      {selectedOrder.shippingAddress.address}, {selectedOrder.shippingAddress.area}, {selectedOrder.shippingAddress.state}<br/>
-                      {selectedOrder.shippingAddress.pincode}
+                      {selectedOrder.shippingAddress?.address}, {selectedOrder.shippingAddress?.area}, {selectedOrder.shippingAddress?.state}<br/>
+                      {selectedOrder.shippingAddress?.pincode}
                     </p>
                   </div>
                 </div>
@@ -223,7 +229,7 @@ export default function Orders() {
                            <span className="text-[9px] font-bold text-slate-400 tracking-tighter">Qty: {item.quantity}</span>
                         </div>
                       </div>
-                      <p className="text-xs font-black text-slate-900 shrink-0">₹{item.price.toLocaleString()}</p>
+                      <p className="text-xs font-black text-slate-900 shrink-0">₹{(item.price || 0).toLocaleString()}</p>
                     </div>
                   ))}
                 </div>
@@ -235,23 +241,23 @@ export default function Orders() {
                 <div className="space-y-3 relative z-10">
                   <div className="flex justify-between text-xs text-zinc-400 font-medium">
                     <span>Subtotal</span>
-                    <span>₹{selectedOrder.subtotal.toLocaleString()}</span>
+                    <span>₹{(selectedOrder.subtotal || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-xs text-zinc-400 font-medium">
                     <span>Shipping</span>
-                    <span className=" uppercase font-black tracking-widest text-[9px]">₹{selectedOrder.shippingCharge}</span>
+                    <span className=" uppercase font-black tracking-widest text-[9px]">₹{selectedOrder.shippingCharge || 0}</span>
                   </div>
                   <div className="flex justify-between text-xs text-zinc-400 font-medium">
                     <span>Tax</span>
-                    <span className=" uppercase font-black tracking-widest text-[9px]">₹{selectedOrder.tax}</span>
+                    <span className=" uppercase font-black tracking-widest text-[9px]">₹{selectedOrder.tax || 0}</span>
                   </div>
                   <div className="flex justify-between text-xs text-zinc-400 font-medium">
                     <span>Discount</span>
-                    <span className=" uppercase font-black tracking-widest text-[9px]">₹{selectedOrder.discount}</span>
+                    <span className=" uppercase font-black tracking-widest text-[9px]">₹{selectedOrder.discount || 0}</span>
                   </div>
                   <div className="pt-3 border-t border-white/10 flex justify-between items-end">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37]">Total Amount</p>
-                    <p className="text-xl md:text-2xl font-serif font-bold tracking-tight">₹{selectedOrder.totalAmount.toLocaleString()}</p>
+                    <p className="text-xl md:text-2xl font-serif font-bold tracking-tight">₹{(selectedOrder.totalAmount || 0).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
