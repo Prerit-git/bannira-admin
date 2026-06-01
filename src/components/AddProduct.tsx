@@ -26,7 +26,7 @@ export default function AddProduct() {
   const [showSEO, setShowSEO] = useState(false);
   const [isNewCategory, setIsNewCategory] = useState(false);
   const [images, setImages] = useState<string[]>([]);
-  const [dbCategories, setDbCategories] = useState<string[]>([]);
+  const [dbCategories, setDbCategories] = useState<any[]>([]); // 🔥 Changed to object array to handle explicit dynamic IDs/Objects
 
   const initialState = {
     name: "",
@@ -51,26 +51,32 @@ export default function AddProduct() {
 
   const [product, setProduct] = useState(initialState);
 
-  // Configuration
-  const initialCategories = ["Cotton Kurti", "Co-ord Set", "Maxi Dress", "Anarkali"];
+  // Configuration fallback structure
+  const initialCategories = [
+    { name: "Cotton Kurti" },
+    { name: "Co-ord Set" },
+    { name: "Maxi Dress" },
+    { name: "Anarkali" }
+  ];
   const availableSizes = ["S", "M", "L", "XL", "XXL"];
 
-  // Fetch unique categories from database on load
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch("/api/categories");
-        const data = await res.json();
-        if (data.length > 0) {
-          setDbCategories(data);
-        } else {
-          setDbCategories(initialCategories);
-        }
-      } catch (err) {
-        console.error("Failed to load categories from database");
+  // 🔥 FIXED: Fetch categories dynamically from your new real admin API path
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/admin/categories");
+      const result = await res.json();
+      if (result.success && result.data && result.data.length > 0) {
+        setDbCategories(result.data);
+      } else {
         setDbCategories(initialCategories);
       }
-    };
+    } catch (err) {
+      console.error("Failed to load categories from database");
+      setDbCategories(initialCategories);
+    }
+  };
+
+  useEffect(() => {
     fetchCategories();
   }, []);
 
@@ -86,17 +92,36 @@ export default function AddProduct() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Logic to pick either dropdown category or custom one
-    const finalCategory = isNewCategory ? product.customCategory : product.category;
+    let finalCategory = product.category;
 
     // Validation
     if (images.length === 0) return alert("Please upload at least one photo.");
     if (product.sizes.length === 0) return alert("Please select at least one size.");
+    
+    if (isNewCategory) {
+      if (!product.customCategory.trim()) return alert("Please enter a custom category name.");
+      finalCategory = product.customCategory.trim();
+    }
+    
     if (!finalCategory) return alert("Please select or enter a category.");
 
     setLoading(true);
 
     try {
+      // 🔥 FIXED: If user is creating a new category, first save it explicitly to the category collection database
+      if (isNewCategory) {
+        const catRes = await fetch("/api/admin/categories", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: finalCategory }),
+        });
+        
+        if (!catRes.ok) {
+          throw new Error("Failed to initialize new dynamic segment category in DB.");
+        }
+      }
+
+      // Proceed to save the product details configuration structure payload
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -105,18 +130,17 @@ export default function AddProduct() {
 
       if (res.ok) {
         setShowPopup(true);
-        // Reset form to initial state
         setProduct(initialState);
         setImages([]);
         setIsNewCategory(false);
-        // Refresh categories list to include the new one if created
-        if (isNewCategory && !dbCategories.includes(finalCategory)) {
-            setDbCategories(prev => [...prev, finalCategory]);
-        }
+        
+        // 🔥 FIXED: Instantly refresh the schema sync lists locally so it's ready for the next product addition
+        await fetchCategories();
+        
         setTimeout(() => setShowPopup(false), 4000);
       }
-    } catch (err) {
-      alert("Error while saving. Please try again.");
+    } catch (err: any) {
+      alert(err.message || "Error while saving. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -181,7 +205,7 @@ export default function AddProduct() {
                   <select
                     value={isNewCategory ? "new" : product.category}
                     required
-                    className="w-full p-4 bg-slate-50 rounded-2xl outline-none appearance-none cursor-pointer focus:ring-1 focus:ring-[#D4AF37]"
+                    className="w-full p-4 bg-slate-50 rounded-2xl outline-none appearance-none cursor-pointer focus:ring-1 focus:ring-[#D4AF37] uppercase text-xs font-semibold"
                     onChange={(e) => {
                       if (e.target.value === "new") {
                         setIsNewCategory(true);
@@ -193,8 +217,8 @@ export default function AddProduct() {
                     }}
                   >
                     <option value="">Select Category</option>
-                    {dbCategories.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
+                    {dbCategories.map((cat, index) => (
+                      <option key={cat._id || index} value={cat.name}>{cat.name}</option>
                     ))}
                     <option value="new" className="text-[#D4AF37] font-bold">+ Create New Category</option>
                   </select>
@@ -221,7 +245,7 @@ export default function AddProduct() {
                     type="text"
                     required
                     placeholder="Enter custom category"
-                    className="w-full p-4 bg-white border border-[#D4AF37]/30 rounded-2xl outline-none shadow-sm"
+                    className="w-full p-4 bg-white border border-[#D4AF37]/30 rounded-2xl outline-none shadow-sm uppercase text-xs font-semibold"
                     onChange={(e) => setProduct({ ...product, customCategory: e.target.value })}
                   />
                 </div>
@@ -264,7 +288,7 @@ export default function AddProduct() {
                 onSuccess={(res: any) => {
                   if (res.info && typeof res.info !== "string") {
                     const newUrl = res.info.secure_url;
-                    setImages((prev) => [...prev, newUrl]); // functional update to prevent overwriting
+                    setImages((prev) => [...prev, newUrl]);
                   }
                 }}
               >
@@ -292,7 +316,7 @@ export default function AddProduct() {
             </div>
           </section>
 
-          {/* Optional SEO Section: Collapsible */}
+          {/* Optional SEO Section */}
           <section className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm overflow-hidden">
             <button
               type="button"
@@ -335,7 +359,7 @@ export default function AddProduct() {
         {/* RIGHT COLUMN: Sidebar Configuration */}
         <div className="lg:col-span-4 space-y-8">
           
-          {/* Promotion / Homepage Toggle */}
+          {/* Store Display Toggle */}
           <section className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-6">Store Display</p>
             <div
@@ -395,7 +419,6 @@ export default function AddProduct() {
           <section className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-6">Specifications *</p>
             <div className="space-y-6">
-              {/* Size Multi-Selector */}
               <div>
                 <label className="text-[10px] font-bold uppercase text-slate-400 block mb-3">Sizes *</label>
                 <div className="flex flex-wrap gap-2">
@@ -471,7 +494,7 @@ export default function AddProduct() {
         </div>
       </div>
 
-      {/* Toast Notification for Success */}
+      {/* Success Popup */}
       {showPopup && (
         <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-4 duration-500">
           <div className="bg-zinc-900 text-white px-10 py-5 rounded-[2.5rem] shadow-2xl flex items-center gap-4 border border-[#D4AF37]/30">
