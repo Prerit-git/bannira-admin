@@ -2,12 +2,10 @@ import { NextResponse } from "next/server";
 import Product from "@/models/Product";
 import connectToDatabase from "@/app/lib/db";
 
-// GET: Fetch all products for the table
 export async function GET() {
   try {
     await connectToDatabase();
     
-    // Fetch all products, sorted by newest first (createdAt: -1)
     const products = await Product.find({}).sort({ createdAt: -1 });
     
     return NextResponse.json(products, { status: 200 });
@@ -17,13 +15,11 @@ export async function GET() {
   }
 }
 
-// POST: Create a new product
 export async function POST(req: Request) {
   try {
     await connectToDatabase();
     const body = await req.json();
 
-    // 1. Backend Validation
     if (!body.images || body.images.length === 0) {
       return NextResponse.json({ error: "At least one image is required" }, { status: 400 });
     }
@@ -32,7 +28,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Product name is required" }, { status: 400 });
     }
 
-    // 2. Slug Generation (URL friendly name)
     const slug = body.name
       .toLowerCase()
       .trim()
@@ -40,17 +35,22 @@ export async function POST(req: Request) {
       .replace(/[\s_-]+/g, "-")
       .replace(/^-+|-+$/g, "");
 
-    // 3. Prepare Data (Syncing with your Model)
+    const totalCalculatedQuantity = body.sizeVariants 
+      ? Object.values(body.sizeVariants).reduce((a: any, b: any) => Number(a) + Number(b), 0)
+      : 0;
+
     const productData = {
       ...body,
       slug,
-      image: body.images[0], // Main thumbnail for singular 'image' field
-      inStock: Number(body.quantity) > 0,
+      image: body.images[0],
+      
+      sizeVariants: body.sizeVariants || {}, 
+      
+      quantity: Number(totalCalculatedQuantity),
+      inStock: Number(totalCalculatedQuantity) > 0,
+      
       price: Number(body.price),
-      quantity: Number(body.quantity),
-      // Handle originalPrice only if it's a valid number
       originalPrice: body.originalPrice ? Number(body.originalPrice) : undefined,
-      // Ensure sizes is an array
       sizes: Array.isArray(body.sizes) ? body.sizes : [],
     };
 
@@ -59,7 +59,6 @@ export async function POST(req: Request) {
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error: any) {
     console.error("Mongoose Error:", error.message);
-    // Return specific error message if validation fails
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -13,8 +13,16 @@ const ProductSchema = new Schema({
   occasion: { type: String },
   work: { type: String },
   sizes: [String],
+  
+  sizeVariants: {
+    type: Map,
+    of: Number,
+    default: {}
+  },
+
   inStock: { type: Boolean, default: true },
   quantity: { type: Number, default: 0 },
+  
   color: { type: String },
   colorCode: { type: String },
   createdAt: { type: Date, default: Date.now }

@@ -45,29 +45,27 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
     colorCode: "#D4AF37",
     quantity: "",
     sizes: [] as string[],
+    sizeVariants: {} as Record<string, number>,
     isFeatured: false,
     videoUrl: "",
     metaTitle: "",
     metaDescription: "",
   });
 
-  const availableSizes = ["S", "M", "L", "XL", "XXL"];
+  const availableSizes = ["XS", "S", "M", "L", "XL", "XXL", "3XL"];
 
   // 1. Load Initial Data from API
   useEffect(() => {
     const loadInitialData = async () => {
-      // Security check to prevent fetching 'undefined'
       if (!productId || productId === "undefined") return;
 
       try {
         setFetching(true);
         
-        // Fetch Categories for dropdown
         const catRes = await fetch("/api/categories");
         const cats = await catRes.json();
         setDbCategories(cats);
 
-        // Fetch Specific Product Details
         const res = await fetch(`/api/products/${productId}`, { 
           cache: 'no-store',
           headers: { 'Content-Type': 'application/json' }
@@ -80,12 +78,12 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
         
         const data = await res.json();
         
-        // Map database numbers to strings for HTML inputs
         setProduct({
           ...data,
           price: data.price?.toString() || "",
           quantity: data.quantity?.toString() || "",
-          originalPrice: data.originalPrice?.toString() || ""
+          originalPrice: data.originalPrice?.toString() || "",
+          sizeVariants: data.sizeVariants || {},
         });
         setImages(data.images || []);
         
@@ -101,13 +99,39 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   }, [productId]);
 
   const handleSizeToggle = (size: string) => {
-    setProduct((prev) => ({
-      ...prev,
-      sizes: prev.sizes.includes(size)
-        ? prev.sizes.filter((s) => s !== size)
-        : [...prev.sizes, size],
-    }));
-  };
+  let updatedSizes = [...product.sizes];
+  let updatedVariants = { ...product.sizeVariants };
+
+  if (updatedSizes.includes(size)) {
+    updatedSizes = updatedSizes.filter((s) => s !== size);
+    delete updatedVariants[size];
+  } else {
+    updatedSizes.push(size);
+    updatedVariants[size] = 0; // Default zero entry fallback initialization
+  }
+
+  const totalQty = Object.values(updatedVariants).reduce((sum, curr) => sum + Number(curr || 0), 0);
+
+  setProduct({
+    ...product,
+    sizes: updatedSizes,
+    sizeVariants: updatedVariants,
+    quantity: String(totalQty),
+  });
+};
+
+const handleSizeQtyChange = (size: string, qtyStr: string) => {
+  const qtyNum = qtyStr === "" ? 0 : Math.max(0, parseInt(qtyStr) || 0);
+  const updatedVariants = { ...product.sizeVariants, [size]: qtyNum };
+  
+  const totalQty = Object.values(updatedVariants).reduce((sum, curr) => sum + Number(curr || 0), 0);
+
+  setProduct({
+    ...product,
+    sizeVariants: updatedVariants,
+    quantity: String(totalQty),
+  });
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -291,7 +315,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                 </div>
                 <div>
                    <label className="text-[9px] font-bold text-slate-400 block mb-1 uppercase">Stock</label>
-                   <input type="number" value={product.quantity} className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold" onChange={e => setProduct({...product, quantity: e.target.value})} />
+                   <input type="number" value={product.quantity} className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold" readOnly/>
                 </div>
               </div>
               <label className="text-[9px] font-bold text-slate-400 block mb-1 uppercase">Original MRP</label>
@@ -309,9 +333,32 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                     {size}
                   </button>
                 ))}
+{product.sizes.length > 0 && (
+  <div className="mt-3 pt-3 border-t border-stone-100 grid grid-cols-2 sm:grid-cols-3 gap-2">
+    {product.sizes.map((size) => {
+      const currentQty = product.sizeVariants[size] !== undefined ? product.sizeVariants[size] : "";
+      return (
+        <div key={size} className="bg-stone-50/40 p-2.5 rounded-xl border border-stone-100 flex items-center justify-between text-xs">
+          <span className="font-bold text-stone-700 uppercase pr-1">{size}</span>
+          <div className="flex items-center gap-1">
+            {/* <span className="text-[9px] text-stone-400 font-bold uppercase">Qty:</span> */}
+            <input
+              type="number"
+              min="0"
+              value={currentQty}
+              placeholder="0"
+              onChange={(e) => handleSizeQtyChange(size, e.target.value)}
+              className="w-14 p-1 bg-white text-center rounded-md outline-none text-xs font-bold border border-stone-200"
+            />
+          </div>
+        </div>
+      );
+    })}
+  </div>
+)}
               </div>
               <div className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Hue</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Color</span>
                 <div className="flex items-center gap-3">
                    <input type="color" value={product.colorCode} className="w-8 h-8 cursor-pointer bg-transparent border-none" onChange={e => setProduct({...product, colorCode: e.target.value})} />
                    <span className="text-[10px] font-bold uppercase text-slate-400">{product.colorCode}</span>

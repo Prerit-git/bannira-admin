@@ -26,7 +26,7 @@ export default function AddProduct() {
   const [showSEO, setShowSEO] = useState(false);
   const [isNewCategory, setIsNewCategory] = useState(false);
   const [images, setImages] = useState<string[]>([]);
-  const [dbCategories, setDbCategories] = useState<any[]>([]); // 🔥 Changed to object array to handle explicit dynamic IDs/Objects
+  const [dbCategories, setDbCategories] = useState<any[]>([]);
 
   const initialState = {
     name: "",
@@ -41,8 +41,8 @@ export default function AddProduct() {
     badge: "",
     color: "",
     colorCode: "#D4AF37",
-    quantity: "",
-    sizes: [] as string[],
+    // 🔥 FIXED: Storing size-wise variant objects instead of a single general quantity text field
+    sizeVariants: {} as Record<string, number>, 
     isFeatured: false,
     videoUrl: "",
     metaTitle: "",
@@ -51,16 +51,14 @@ export default function AddProduct() {
 
   const [product, setProduct] = useState(initialState);
 
-  // Configuration fallback structure
   const initialCategories = [
     { name: "Cotton Kurti" },
     { name: "Co-ord Set" },
     { name: "Maxi Dress" },
     { name: "Anarkali" }
   ];
-  const availableSizes = ["S", "M", "L", "XL", "XXL"];
+  const availableSizes = ["S", "M", "L", "XL", "XXL", "3XL", "4XL"]; // Included 3XL/4XL natively as requested by client
 
-  // 🔥 FIXED: Fetch categories dynamically from your new real admin API path
   const fetchCategories = async () => {
     try {
       const res = await fetch("/api/admin/categories");
@@ -80,12 +78,27 @@ export default function AddProduct() {
     fetchCategories();
   }, []);
 
+  // 🔥 FIXED: Toggles size configuration variables seamlessly
   const handleSizeToggle = (size: string) => {
+    setProduct((prev) => {
+      const updatedVariants = { ...prev.sizeVariants };
+      if (size in updatedVariants) {
+        delete updatedVariants[size]; // Deselect
+      } else {
+        updatedVariants[size] = 10; // Default initial allocation value
+      }
+      return { ...prev, sizeVariants: updatedVariants };
+    });
+  };
+
+  // 🔥 FIXED: Handshakes numerical variations tracking matrices smoothly
+  const handleQuantityChange = (size: string, value: number) => {
     setProduct((prev) => ({
       ...prev,
-      sizes: prev.sizes.includes(size)
-        ? prev.sizes.filter((s) => s !== size)
-        : [...prev.sizes, size],
+      sizeVariants: {
+        ...prev.sizeVariants,
+        [size]: Math.max(0, value),
+      }
     }));
   };
 
@@ -93,10 +106,11 @@ export default function AddProduct() {
     e.preventDefault();
 
     let finalCategory = product.category;
+    const selectedSizesList = Object.keys(product.sizeVariants);
 
     // Validation
     if (images.length === 0) return alert("Please upload at least one photo.");
-    if (product.sizes.length === 0) return alert("Please select at least one size.");
+    if (selectedSizesList.length === 0) return alert("Please select at least one size and set its stock level.");
     
     if (isNewCategory) {
       if (!product.customCategory.trim()) return alert("Please enter a custom category name.");
@@ -107,8 +121,10 @@ export default function AddProduct() {
 
     setLoading(true);
 
+    // Dynamic aggregated cumulative total for root warehouse calculations sync tracking
+    const totalCalculatedQuantity = Object.values(product.sizeVariants).reduce((a, b) => a + b, 0);
+
     try {
-      // 🔥 FIXED: If user is creating a new category, first save it explicitly to the category collection database
       if (isNewCategory) {
         const catRes = await fetch("/api/admin/categories", {
           method: "POST",
@@ -121,11 +137,16 @@ export default function AddProduct() {
         }
       }
 
-      // Proceed to save the product details configuration structure payload
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...product, category: finalCategory, images }),
+        body: JSON.stringify({ 
+          ...product, 
+          category: finalCategory, 
+          images,
+          sizes: selectedSizesList, // Sending direct flat string configuration schema array matching model hooks
+          quantity: totalCalculatedQuantity // Legacy schema sync fallback tracking value
+        }),
       });
 
       if (res.ok) {
@@ -133,10 +154,7 @@ export default function AddProduct() {
         setProduct(initialState);
         setImages([]);
         setIsNewCategory(false);
-        
-        // 🔥 FIXED: Instantly refresh the schema sync lists locally so it's ready for the next product addition
         await fetchCategories();
-        
         setTimeout(() => setShowPopup(false), 4000);
       }
     } catch (err: any) {
@@ -199,7 +217,6 @@ export default function AddProduct() {
               </div>
 
               <div className="grid grid-cols-2 gap-6">
-                {/* Category Selection Logic */}
                 <div className="relative">
                   <label className="text-[10px] font-bold uppercase text-slate-400 block mb-2 ml-1">Category *</label>
                   <select
@@ -237,7 +254,6 @@ export default function AddProduct() {
                 </div>
               </div>
 
-              {/* Input for creating a new category manually */}
               {isNewCategory && (
                 <div className="animate-in slide-in-from-top-2 duration-300">
                   <label className="text-[10px] font-bold uppercase text-[#D4AF37] block mb-2 ml-1">New Category Name *</label>
@@ -378,9 +394,9 @@ export default function AddProduct() {
 
           {/* Pricing Section */}
           <section className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-6">Pricing & Inventory *</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-6">Pricing Structures *</p>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-400 block mb-2">Sale Price (₹)</label>
                   <input
@@ -389,16 +405,6 @@ export default function AddProduct() {
                     required
                     className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold text-zinc-900"
                     onChange={(e) => setProduct({ ...product, price: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 block mb-2">Stock Level</label>
-                  <input
-                    type="number"
-                    value={product.quantity}
-                    required
-                    className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold text-zinc-900"
-                    onChange={(e) => setProduct({ ...product, quantity: e.target.value })}
                   />
                 </div>
               </div>
@@ -415,28 +421,51 @@ export default function AddProduct() {
             </div>
           </section>
 
-          {/* Product Specifications Section */}
+          {/* 🔥 FIXED: Integrated dynamic variant configurations inside the specific block loop */}
           <section className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-6">Specifications *</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-6">Inventory Matrix *</p>
             <div className="space-y-6">
               <div>
-                <label className="text-[10px] font-bold uppercase text-slate-400 block mb-3">Sizes *</label>
+                <label className="text-[10px] font-bold uppercase text-slate-400 block mb-3">Select Active Sizes *</label>
                 <div className="flex flex-wrap gap-2">
-                  {availableSizes.map((size) => (
-                    <button
-                      key={size}
-                      type="button"
-                      onClick={() => handleSizeToggle(size)}
-                      className={`w-11 h-11 rounded-full text-[10px] font-black transition-all border ${product.sizes.includes(size) ? "bg-zinc-900 border-zinc-900 text-white shadow-lg" : "bg-white border-slate-100 text-slate-400 hover:border-slate-300"}`}
-                    >
-                      {size}
-                    </button>
-                  ))}
+                  {availableSizes.map((size) => {
+                    const isActive = size in product.sizeVariants;
+                    return (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => handleSizeToggle(size)}
+                        className={`w-11 h-11 rounded-full text-[10px] font-black transition-all border ${isActive ? "bg-zinc-900 border-zinc-900 text-white shadow-lg" : "bg-white border-slate-100 text-slate-400 hover:border-slate-300"}`}
+                      >
+                        {size}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
+              {/* Dynamic quantity boxes render seamlessly based on checked size buttons selection map */}
+              {Object.keys(product.sizeVariants).length > 0 && (
+                <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100/60 animate-in fade-in duration-300">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Specify Units Per Size</p>
+                  {Object.keys(product.sizeVariants).map((size) => (
+                    <div key={size} className="flex items-center justify-between gap-4 bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
+                      <span className="text-xs font-black text-slate-700 w-8 pl-1">{size}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        required
+                        value={product.sizeVariants[size]}
+                        className="w-24 p-2 bg-slate-50 border border-slate-100 rounded-lg text-right font-bold text-xs outline-none focus:border-[#D4AF37]"
+                        onChange={(e) => handleQuantityChange(size, parseInt(e.target.value) || 0)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Color Information */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 border-t border-stone-100 pt-6">
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-400 block mb-2">Color *</label>
                   <input
