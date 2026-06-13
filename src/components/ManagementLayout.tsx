@@ -13,7 +13,8 @@ import {
   LogOut,
   Menu, 
   X,     
-  Layers
+  Layers,
+  ArrowBigRightIcon
 } from "lucide-react";
 import Image from "next/image";
 import { signOut, useSession } from "next-auth/react";
@@ -33,6 +34,7 @@ export default function ManagementLayout({ children }: { children: React.ReactNo
     { label: "Add Product", href: "/products/add", icon: PlusCircle },
     { label: "Categories", href: "/categories", icon: Layers },
     { label: "Settings", href: "/settings", icon: Settings },
+    { label: "Offline Sale", href: "/offline-billing", icon: ArrowBigRightIcon },
   ];
 
   return (

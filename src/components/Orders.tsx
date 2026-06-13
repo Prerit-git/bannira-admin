@@ -32,46 +32,58 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  
+  const [activeTab, setActiveTab] = useState<"online" | "offline">("online");
 
-  const fetchOrders = async () => {
-    try {
-      const res = await fetch("/api/orders");
-      const data = await res.json();
-      setOrders(data);
-    } catch (err) {
-      console.error("Failed to fetch orders");
-    } finally {
-      setLoading(false);
+  const fetchOrders = async (tabType: "online" | "offline") => {
+  try {
+    setLoading(true);
+    const endpoint = tabType === "online" ? "/api/orders" : "/api/admin/offline-sales";
+    const res = await fetch(endpoint);
+    
+    if (!res.ok) {
+      throw new Error(`Server responded with status: ${res.status}`);
     }
-  };
+    
+    const data = await res.json();
+    setOrders(Array.isArray(data) ? data : data.sales || data.orders || []);
+  } catch (err) {
+    console.error(`Failed to fetch ${tabType} orders schemas`);
+    console.error("🔥 ACTUAL NETWORK ERROR DETAIL:", err);
+    setOrders([]); 
+  } finally {
+    setLoading(false);
+  }
+};
 
-  useEffect(() => { fetchOrders(); }, []);
+  // Trigger fetching loops every time the admin tab selections shifts active flags
+  useEffect(() => { 
+    fetchOrders(activeTab); 
+  }, [activeTab]);
 
   const getCustomStatus = (order: any) => {
     if (order.paymentStatus === "Paid") {
       return { text: "Paid", style: "bg-green-50 text-green-600 border-green-100" };
     }
-    if (order.paymentMethod === "cod") {
+    if (order.paymentMethod === "cod" || order.paymentMethod === "cash") {
       return { text: "Pay on Delivery", style: "bg-orange-50 text-orange-600 border-orange-100" };
     }
     return { text: "Pending", style: "bg-orange-50 text-orange-600 border-orange-100" };
   };
 
+  // Filter matrix evaluation logic
   const filteredOrders = orders
-    .filter((o: any) => o.orderStatus === "Processing")
     .filter((o: any) => {
-      const name = o.shippingAddress?.fullName?.toLowerCase() || "";
-      const id = o._id?.toString().toLowerCase() || "";
+      if (activeTab === "offline") return true; 
+      return o.orderStatus === "Processing";
+    })
+    .filter((o: any) => {
+      // Walk-in client name matching parameters allocation
+      const name = (o.shippingAddress?.fullName || o.customerName || "").toLowerCase();
+      const id = (o._id || o.invoiceNumber || "").toString().toLowerCase();
       const term = searchTerm.toLowerCase();
       return name.includes(term) || id.includes(term);
     });
-
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400 p-4">
-      <Loader2 className="animate-spin mb-4 text-[#D4AF37]" size={32} />
-      <p className="text-[10px] uppercase tracking-[0.2em] font-black text-center">Scanning Orders...</p>
-    </div>
-  );
 
   return (
     <div className="w-full max-w-[300px] md:max-w-[1200px] mx-auto animate-in fade-in duration-700 pb-20 px-0 md:px-4 min-w-0 overflow-hidden">
@@ -82,148 +94,240 @@ export default function Orders() {
             Orders
           </h1>
           <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mt-1">
-            {filteredOrders.length} Processing Sales{" "}
-            {/* Reflecting accurate filtered length */}
+            {filteredOrders.length} {activeTab === "online" ? "Processing Online" : "Recorded Offline"} Sales
           </p>
         </div>
 
-        <div className="relative group w-auto">
-          <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"
-            size={14}
-          />
-          <input
-            type="text"
-            placeholder="Search customer or Order ID..."
-            className="pl-10 pr-6 py-3 bg-white border border-slate-100 rounded-2xl outline-none focus:ring-1 focus:ring-[#D4AF37] w-full md:w-80 text-xs transition-all shadow-sm"
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 group w-auto">
+          {/* 🔥 3. PREMIUM PREMIUM BANNIRA STANDARD TAB CONTROLLERS CHIPS WRAPPER */}
+          <div className="flex items-center bg-slate-100/80 p-1 rounded-xl border border-slate-200/30 self-start">
+            <button
+              type="button"
+              onClick={() => { setActiveTab("online"); setSelectedOrder(null); }}
+              className={`px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                activeTab === "online" 
+                  ? "bg-white text-slate-900 shadow-xs" 
+                  : "text-slate-400 hover:text-slate-700"
+              }`}
+            >
+              Online Orders
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab("offline"); setSelectedOrder(null); }}
+              className={`px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                activeTab === "offline" 
+                  ? "bg-white text-slate-900 shadow-xs" 
+                  : "text-slate-400 hover:text-slate-700"
+              }`}
+            >
+              Offline Orders
+            </button>
+          </div>
+
+          <div className="relative">
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"
+              size={14}
+            />
+            <input
+              type="text"
+              placeholder="Search customer or Order ID..."
+              className="pl-10 pr-6 py-3 bg-white border border-slate-100 rounded-2xl outline-none focus:ring-1 focus:ring-[#D4AF37] w-full md:w-80 text-xs transition-all shadow-sm"
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
       </header>
 
-      {/* Outer Card Wrapper */}
-      <div className="w-full bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-        {/* Inner Scroll Wrapper */}
-        <div className="w-full overflow-x-auto block min-w-0 clear-both">
-          <table className="w-full text-left border-collapse min-w-[850px] table-auto">
-            <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-100">
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-[15%]">
-                  Date & ID
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-[25%]">
-                  Customer
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-[20%]">
-                  Items
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-[15%]">
-                  Payment
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-[12%]">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right w-[13%]">
-                  Amount
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredOrders.map((order: any) => {
-                const statusData = getCustomStatus(order); // Compute status configurations dynamically
-                return (
-                  <tr
-                    key={order._id}
-                    onClick={() => setSelectedOrder(order)}
-                    className="hover:bg-slate-50/50 transition-all group cursor-pointer"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-slate-900 mb-0.5">
-                          #{order._id.slice(-6).toUpperCase()}
-                        </span>
-                        <span className="text-[9px] text-slate-400 font-medium">
-                          {new Date(order.createdAt).toLocaleDateString(
-                            "en-GB",
-                          )}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-800 text-xs">
-                          {order.shippingAddress?.fullName || "Guest"}
-                        </span>
-                        <span className="text-[9px] text-slate-400">
-                          {order.shippingAddress?.phone || order.phone}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex -space-x-2">
-                        {order.items.slice(0, 3).map((item: any, i: number) => (
-                          <img
-                            key={i}
-                            src={item.image}
-                            className="w-8 h-10 rounded-md border-2 border-white object-cover shadow-sm inline-block"
-                            alt="item thumbnail"
-                          />
-                        ))}
-                        {order.items.length > 3 && (
-                          <div className="w-8 h-10 rounded-md border-2 border-white bg-slate-100 inline-flex items-center justify-center text-[8px] font-black text-slate-400">
-                            +{order.items.length - 3}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <CreditCard size={12} className="text-slate-300" />
-                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter">
-                          {order.paymentMethod || "COD"}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {/* 3. Rendered the computed dynamic text block & styles seamlessly */}
-                      <span
-                        className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full border ${statusData.style}`}
-                      >
-                        {statusData.text}
-                      </span>
-                    </td>
-
-                    <td className="px-6 py-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-3">
-                        <span className="font-black text-slate-900 text-xs">
-                          ₹{(order.totalAmount || 0).toLocaleString()}
-                        </span>
-                        <ChevronRight
-                          size={14}
-                          className="text-slate-300 group-hover:text-slate-900 transition-all group-hover:translate-x-1"
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* Dynamic Render Switch Table Screen Logic */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center h-[40vh] text-slate-400 p-4 bg-white rounded-3xl border border-slate-100 shadow-sm">
+          <Loader2 className="animate-spin mb-4 text-[#D4AF37]" size={32} />
+          <p className="text-[10px] uppercase tracking-[0.2em] font-black text-center">Scanning Storage Files...</p>
         </div>
+      ) : (
+        <div className="w-full bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+          {/* Inner Scroll Wrapper */}
+          <div className="w-full overflow-x-auto block min-w-0 clear-both">
+            <table className="w-full text-left border-collapse min-w-[850px] table-auto">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-100">
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-[15%]">
+                    Date & ID
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-[25%]">
+                    Customer
+                  </th>
+                  {activeTab === "online" && (
+                    <>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-[20%]">
+                    Items
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-[15%]">
+                    Payment
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-[12%]">
+                    Status
+                  </th>
+                    </>
+                  )}
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right w-[13%]">
+                    Amount
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredOrders.map((order: any) => {
+                  const statusData = getCustomStatus(order); 
+                  
+                  const orderIdString = order._id ? order._id.toString() : "";
+                  const displayId = order.invoiceNumber || `#${orderIdString.slice(-6).toUpperCase()}`;
+                  const customerName = order.shippingAddress?.fullName || order.customerName || "Walk-In Buyer";
+                  const customerPhone = order.shippingAddress?.phone || order.customerPhone || order.phone || "N/A";
+                  const paymentDisplay = order.paymentMethod || order.paymentMode || "COD";
+                  const finalAmount = order.totalAmount || 0;
 
-        {filteredOrders.length === 0 && (
-          <div className="py-20 flex flex-col items-center justify-center text-slate-300">
-            <ShoppingBag size={32} strokeWidth={1} className="mb-3" />
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              No matching orders
-            </p>
+                  return (
+                    <tr
+                      key={order._id || displayId}
+                      onClick={() => {
+                        // Normalize format structures mapping objects layer safely on modal runtime opening points
+                        const unifiedOrder = {
+                          ...order,
+                          _id: order._id || "OFFLINE_SALE",
+                          createdAt: order.createdAt,
+                          subtotal: order.subtotal || 0,
+                          shippingCharge: order.shippingCharge || 0,
+                          tax: order.tax || 0,
+                          discount: order.discount || 0,
+                          totalAmount: finalAmount,
+                          paymentMethod: paymentDisplay,
+                          paymentStatus: order.paymentStatus || "Paid",
+                          items: order.items || [],
+                          shippingAddress: {
+                            fullName: customerName,
+                            phone: customerPhone,
+                            email: order.shippingAddress?.email || "Offline Cash Register Desk",
+                            address: order.shippingAddress?.address || "Store Sale Counter Checkout",
+                            area: order.shippingAddress?.area || "Over the counter",
+                            state: order.shippingAddress?.state || "Direct Register",
+                            pincode: order.shippingAddress?.pincode || "000000",
+                            gstNumber: order.shippingAddress?.gstNumber || order.customerGst || ""
+                          }
+                        };
+                        setSelectedOrder(unifiedOrder);
+                      }}
+                      className="hover:bg-slate-50/50 transition-all group cursor-pointer"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold text-slate-900 mb-0.5">
+                            {displayId.startsWith("#") ? displayId : `${displayId}`}
+                          </span>
+                          <span className="text-[9px] text-slate-400 font-medium">
+                            {new Date(order.createdAt).toLocaleDateString("en-GB")}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-800 text-xs">
+                            {customerName}
+                          </span>
+                          <span className="text-[9px] text-slate-400">
+                            {customerPhone}
+                          </span>
+                        </div>
+                      </td>
+                      {activeTab === "online" && (
+                        <>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex -space-x-2">
+                              {(order.items || []).slice(0, 3).map((item: any, i: number) => (
+                                <img key={i} src={item.image || "/placeholder.jpg"} className="w-8 h-10 rounded-md border-2 border-white object-cover shadow-sm inline-block" alt="item thumbnail" />
+                              ))}
+                              {(order.items || []).length > 3 && (
+                                <div className="w-8 h-10 rounded-md border-2 border-white bg-slate-100 inline-flex items-center justify-center text-[8px] font-black text-slate-400">+{(order.items || []).length - 3}</div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <CreditCard size={12} className="text-slate-300" />
+                          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter">
+                            {paymentDisplay}
+                          </span>
+                        </div>
+                      </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full border ${statusData.style}`}>{statusData.text}</span>
+                          </td>
+                        </>
+                      )}
+
+                      {/* <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex -space-x-2">
+                          {(order.items || []).slice(0, 3).map((item: any, i: number) => (
+                            <img
+                              key={i}
+                              src={item.image}
+                              className="w-8 h-10 rounded-md border-2 border-white object-cover shadow-sm inline-block"
+                              alt="item thumbnail"
+                            />
+                          ))}
+                          {(order.items || []).length > 3 && (
+                            <div className="w-8 h-10 rounded-md border-2 border-white bg-slate-100 inline-flex items-center justify-center text-[8px] font-black text-slate-400">
+                              +{(order.items || []).length - 3}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <CreditCard size={12} className="text-slate-300" />
+                          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter">
+                            {paymentDisplay}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full border ${statusData.style}`}>
+                          {statusData.text}
+                        </span>
+                      </td> */}
+
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-3">
+                          <span className="font-black text-slate-900 text-xs">
+                            ₹{finalAmount.toLocaleString("en-IN")}
+                          </span>
+                          <ChevronRight
+                            size={14}
+                            className="text-slate-300 group-hover:text-slate-900 transition-all group-hover:translate-x-1"
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+
+          {filteredOrders.length === 0 && (
+            <div className="py-20 flex flex-col items-center justify-center text-slate-300">
+              <ShoppingBag size={32} strokeWidth={1} className="mb-3" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                No matching {activeTab} orders found
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* --- RESPONSIVE ORDER DETAILS MODAL / DRAWER --- */}
       {selectedOrder && (
@@ -233,10 +337,10 @@ export default function Orders() {
             <div className="p-6 md:p-8 border-b border-slate-50 flex items-center justify-between shrink-0">
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-1">
-                  Order Details
+                  Order Details ({selectedOrder.shippingAddress?.state === "Offline Store" ? "Offline" : "Online"})
                 </p>
                 <p className="text-base md:text-lg font-bold text-slate-900 truncate">
-                  ID: #{selectedOrder._id.toUpperCase()}
+                  ID: {selectedOrder.invoiceNumber || `#${selectedOrder._id.toString().slice(-6).toUpperCase()}`}
                 </p>
               </div>
               <button
@@ -274,8 +378,7 @@ export default function Orders() {
                         Phone
                       </p>
                       <p className="text-xs font-bold text-slate-800">
-                        {selectedOrder.shippingAddress?.phone ||
-                          selectedOrder.phone}
+                        {selectedOrder.shippingAddress?.phone}
                       </p>
                     </div>
                   </div>
@@ -294,6 +397,9 @@ export default function Orders() {
                       {selectedOrder.shippingAddress?.state}
                       <br />
                       {selectedOrder.shippingAddress?.pincode}
+                      {selectedOrder.shippingAddress?.gstNumber && (
+                        <span className="block mt-1 font-bold text-[#7B2D0A]">GSTIN: {selectedOrder.shippingAddress.gstNumber}</span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -332,7 +438,7 @@ export default function Orders() {
                         </div>
                       </div>
                       <p className="text-xs font-black text-slate-900 shrink-0">
-                        ₹{(item.price || 0).toLocaleString()}
+                        ₹{(item.price || 0).toLocaleString("en-IN")}
                       </p>
                     </div>
                   ))}
@@ -346,7 +452,7 @@ export default function Orders() {
                   <div className="flex justify-between text-xs text-zinc-400 font-medium">
                     <span>Subtotal</span>
                     <span>
-                      ₹{(selectedOrder.subtotal || 0).toLocaleString()}
+                      ₹{(selectedOrder.subtotal || 0).toLocaleString("en-IN")}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs text-zinc-400 font-medium">
@@ -358,13 +464,13 @@ export default function Orders() {
                   <div className="flex justify-between text-xs text-zinc-400 font-medium">
                     <span>Tax</span>
                     <span className=" uppercase font-black tracking-widest text-[9px]">
-                      ₹{selectedOrder.tax || 0}
+                      ₹{(selectedOrder.tax || 0).toLocaleString("en-IN")}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs text-zinc-400 font-medium">
                     <span>Discount</span>
                     <span className=" uppercase font-black tracking-widest text-[9px]">
-                      ₹{selectedOrder.discount || 0}
+                      - ₹{(selectedOrder.discount || 0).toLocaleString("en-IN")}
                     </span>
                   </div>
                   <div className="pt-3 border-t border-white/10 flex justify-between items-end">
@@ -372,7 +478,7 @@ export default function Orders() {
                       Total Amount
                     </p>
                     <p className="text-xl md:text-2xl font-serif font-bold tracking-tight">
-                      ₹{(selectedOrder.totalAmount || 0).toLocaleString()}
+                      ₹{(selectedOrder.totalAmount || 0).toLocaleString("en-IN")}
                     </p>
                   </div>
                 </div>
@@ -381,7 +487,6 @@ export default function Orders() {
 
             {/* Modal Footer / Actions */}
             <div className="p-6 md:p-8 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row gap-3 shrink-0">
-              {/* <button className="flex-1 py-4 bg-zinc-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:shadow-xl transition-all cursor-pointer">Update Status</button> */}
               <button
                 onClick={() => downloadInvoicePDF(selectedOrder, "GST")}
                 className="w-[50%] px-4 py-4 border border-stone-200 bg-white hover:bg-[#7B2D0A]/5 hover:border-[#7B2D0A]/30 rounded-2xl text-[10px] font-black uppercase tracking-widest text-[#7B2D0A] transition-all cursor-pointer flex items-center justify-center gap-1"
