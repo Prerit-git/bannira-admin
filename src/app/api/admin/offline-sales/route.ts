@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       paymentMode,
     });
 
-    // 4. 🔥 CRITICAL INVENTORY SYNC: Decrement sizes inventory instantly
+    // 4. CRITICAL INVENTORY SYNC: Decrement sizes inventory instantly
     const inventoryPromises = items.map((item: any) => {
       const sizeFieldPath = `sizeVariants.${item.size}`;
       return Product.findByIdAndUpdate(item.productId, {
@@ -63,17 +63,12 @@ export async function POST(req: Request) {
   }
 }
 
-// 🔥 FIXED: GET method connected directly to OfflineSale model collection
+// GET handler connected directly to OfflineSale model collection
 export async function GET() {
   try {
     await connectToDatabase();
-    
-    // Atlas ki offlinesales table se saara data fetch karein (latest first)
     const offlineSales = await OfflineSale.find({}).sort({ createdAt: -1 });
-    
-    // Clear JSON response return karein jise frontend parse kar sake
     return NextResponse.json(offlineSales, { status: 200 });
-
   } catch (error: any) {
     console.error("Offline Sales GET API Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
