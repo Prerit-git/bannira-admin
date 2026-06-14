@@ -337,7 +337,7 @@ export default function Orders() {
             <div className="p-6 md:p-8 border-b border-slate-50 flex items-center justify-between shrink-0">
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-1">
-                  Order Details ({selectedOrder.shippingAddress?.state === "Offline Store" ? "Offline" : "Online"})
+                  Order Details
                 </p>
                 <p className="text-base md:text-lg font-bold text-slate-900 truncate">
                   ID: {selectedOrder.invoiceNumber || `#${selectedOrder._id.toString().slice(-6).toUpperCase()}`}
