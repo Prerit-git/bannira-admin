@@ -5,6 +5,7 @@ export interface IOfflineSale extends Document {
   customerName: string;
   customerPhone?: string;
   customerGst?: string;
+  sellThrough: string;
   items: {
     productId: mongoose.Types.ObjectId;
     name: string;
@@ -26,6 +27,11 @@ const OfflineSaleSchema = new Schema<IOfflineSale>(
     customerName: { type: String, required: true, default: "Walk-in Customer" },
     customerPhone: { type: String },
     customerGst: { type: String },
+    sellThrough: { 
+      type: String, 
+      required: true, 
+      default: "In-store" 
+    },
     items: [
       {
         productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
@@ -44,5 +50,6 @@ const OfflineSaleSchema = new Schema<IOfflineSale>(
   { timestamps: true }
 );
 
-const OfflineSale = models.OfflineSale || model<IOfflineSale>("OfflineSale", OfflineSaleSchema);
+// const OfflineSale = models.OfflineSale || model<IOfflineSale>("OfflineSale", OfflineSaleSchema);
+const OfflineSale = models.OfflineSale || model("OfflineSale", OfflineSaleSchema);
 export default OfflineSale;

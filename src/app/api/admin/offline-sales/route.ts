@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   try {
     await connectToDatabase();
     const body = await req.json();
-    const { customerName, customerPhone, customerGst, items, subtotal, discount, tax, totalAmount, paymentMode } = body;
+    const { customerName, customerPhone, customerGst, sellThrough, items, subtotal, discount, tax, totalAmount, paymentMode } = body;
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: "No products added to invoice grid." }, { status: 400 });
@@ -35,6 +35,7 @@ export async function POST(req: Request) {
       customerName,
       customerPhone,
       customerGst,
+      sellThrough,
       items,
       subtotal,
       discount,
