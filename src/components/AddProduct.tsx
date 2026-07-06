@@ -57,7 +57,7 @@ export default function AddProduct() {
     { name: "Maxi Dress" },
     { name: "Anarkali" }
   ];
-  const availableSizes = ["S", "M", "L", "XL", "XXL", "3XL", "4XL"]; // Included 3XL/4XL natively as requested by client
+  const availableSizes = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL"];
 
   const fetchCategories = async () => {
     try {

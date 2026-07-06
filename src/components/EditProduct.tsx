@@ -52,7 +52,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
     metaDescription: "",
   });
 
-  const availableSizes = ["XS", "S", "M", "L", "XL", "XXL", "3XL"];
+  const availableSizes = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL"];
 
   // 1. Load Initial Data from API
   useEffect(() => {

@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { code, discountType, discountValue, minOrderValue, startDate, endDate, usageLimit } = body;
+    const { code, discountType, discountValue, minOrderValue, startDate, endDate, usageLimit, isNewUserOnly } = body;
 
     
     const parsedEndDate = endDate && endDate.trim() !== "" ? new Date(endDate) : undefined;
@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       usageLimit: usageLimit || undefined,
       usedCount: 0,
       isActive: true,
+      isNewUserOnly: isNewUserOnly || false
     };
 
     let settings = await UISetting.findOne({});

@@ -19,6 +19,7 @@ interface Coupon {
   minOrderValue?: number;
   startDate: string;
   endDate: string;
+  isNewUserOnly?: boolean;
 }
 
 interface Product {
@@ -55,6 +56,7 @@ export default function AdminUISettings() {
     minOrderValue: 0,
     startDate: "",
     endDate: "",
+    isNewUserOnly: false,
   });
 
   useEffect(() => {
@@ -224,6 +226,7 @@ export default function AdminUISettings() {
           minOrderValue: 0,
           startDate: "",
           endDate: "",
+          isNewUserOnly: false,
         });
       } else {
         alert(result.message);
@@ -779,6 +782,22 @@ export default function AdminUISettings() {
                       className="h-14 w-full border border-stone-200 rounded-2xl px-5 text-xs focus:border-[#7B2D0A] outline-none transition-all text-stone-500"
                     />
                   </div>
+
+                  <div className="md:col-span-3 flex items-center justify-between p-5 bg-[#FAF9F6] border border-stone-200 rounded-2xl mt-2">
+                    <div>
+                      <p className="text-xs font-bold text-stone-800">For new users Only</p>
+                      <p className="text-[10px] text-stone-400 mt-0.5">If toggled ON, this coupon will be available only for first-time buyers.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={newCoupon.isNewUserOnly || false} 
+                        onChange={(e) => setNewCoupon({ ...newCoupon, isNewUserOnly: e.target.checked })} 
+                        className="sr-only peer" 
+                      />
+                      <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#7B2D0A]"></div>
+                    </label>
+                  </div>
                 </div>
 
                 <button
@@ -796,8 +815,13 @@ export default function AdminUISettings() {
                         key={c._id || index}
                         className="flex justify-between items-center p-5 bg-[#F4EFEB]/30 rounded-2xl border border-[#EBEBE8] text-xs"
                       >
-                        <span className="font-black uppercase tracking-widest">
+                        <span className="font-black uppercase tracking-widest flex gap-2">
                           {c.code}
+                        {c.isNewUserOnly && (
+                            <span className="text-[9px] font-extrabold px-2.5 py-0.5 bg-[#7B2D0A]/10 text-[#7B2D0A] rounded-md uppercase tracking-wider self-start">
+                              For New Users
+                            </span>
+                          )}
                         </span>
                         <span className="text-[#8C7A6B]">
                           {c.discountValue}{" "}
